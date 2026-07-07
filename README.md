@@ -14,9 +14,9 @@ graph TD
     A[Hugging Face / Local Fallback] -->|JSON/Parquet| B[data_processor.py Ingestion]
     B -->|Create unified comparative chunks| C[ChromaDB Vector Store]
     D[Streamlit app.py UI] -->|User queries & API Key| E[rag_engine.py]
-    E -->|1. Generate search embedding| F[models/text-embedding-004]
+    E -->|1. Generate search embedding| F[SentenceTransformer: all-MiniLM-L6-v2]
     E -->|2. Search matches| C
-    E -->|3. Formulate comparison context| G[gemini-1.5-flash / gemini-2.0-flash]
+    E -->|3. Formulate comparison context| G[gemini-2.5-flash]
     G -->|4. Generate structured answer| D
 ```
 

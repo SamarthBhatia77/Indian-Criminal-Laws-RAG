@@ -5,3 +5,5 @@ google-genai>=0.1.1
 chromadb>=0.4.20
 datasets>=2.15.0
 requests>=2.31.0
+sentence-transformers>=2.2.0
+torch>=2.0.0

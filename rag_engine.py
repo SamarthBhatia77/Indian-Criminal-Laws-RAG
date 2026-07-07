@@ -1,7 +1,35 @@
 import os
+# Set environment variables to prevent multi-threaded deadlocks in PyTorch/OpenMP/MKL
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+
+import torch
+torch.set_num_threads(1)
+
 import chromadb
 from google import genai
 from google.genai import types
+
+# Caching local model instance to prevent reloading in Streamlit
+_transformer_model = None
+
+def get_transformer_model():
+    global _transformer_model
+    if _transformer_model is None:
+        from sentence_transformers import SentenceTransformer
+        print("Loading local SentenceTransformer model 'all-MiniLM-L6-v2' in RAG engine...")
+        _transformer_model = SentenceTransformer('all-MiniLM-L6-v2')
+    return _transformer_model
+
+# Caching ChromaDB client to prevent multiple clients locking the same sqlite file
+_chroma_client = None
+
+def get_chroma_client():
+    global _chroma_client
+    if _chroma_client is None:
+        db_path = os.path.join(os.getcwd(), "database")
+        _chroma_client = chromadb.PersistentClient(path=db_path)
+    return _chroma_client
 
 def get_chroma_collection():
     """
@@ -12,7 +40,7 @@ def get_chroma_collection():
         return None
         
     try:
-        chroma_client = chromadb.PersistentClient(path=db_path)
+        chroma_client = get_chroma_client()
         # Returns the collection if it exists
         return chroma_client.get_collection(name="indian_laws_comparison")
     except Exception as e:
@@ -21,22 +49,16 @@ def get_chroma_collection():
 
 def query_vector_store(query_text, api_key, law_filter=None, top_k=5):
     """
-    Generates embedding for the query and retrieves the top_k relevant sections from ChromaDB.
+    Generates embedding locally for the query and retrieves the top_k relevant sections from ChromaDB.
     """
     collection = get_chroma_collection()
     if collection is None or collection.count() == 0:
         return []
         
-    # Initialize the new Google Gen AI Client
-    client = genai.Client(api_key=api_key)
-    
     try:
-        # Generate embedding for search query
-        response = client.models.embed_content(
-            model="text-embedding-004",
-            contents=query_text
-        )
-        query_embedding = response.embeddings[0].values
+        # Load local model and encode query locally
+        model = get_transformer_model()
+        query_embedding = model.encode(query_text).tolist()
         
         # Prepare filter if selected
         where_filter = None
@@ -176,11 +198,11 @@ def generate_rag_response(query_text, context_docs, api_key, chat_history=[]):
         "You are an expert Indian Legal Advisor specializing in the transition from the legacy colonial-era criminal laws "
         "(Indian Penal Code - IPC, Code of Criminal Procedure - CrPC, Indian Evidence Act - IEA) to the newly enacted laws of 2023 "
         "(Bharatiya Nyaya Sanhita - BNS, Bharatiya Nagarik Suraksha Sanhita - BNSS, Bharatiya Sakshya Adhiniyam - BSA) which came into effect on July 1, 2024.\n\n"
-        "Your task is to analyze the user's question, utilize the provided SOURCE DOCUMENTS containing corresponding sections, "
-        "and explain the differences clearly, professionally, and accurately.\n\n"
+        "Your task is to analyze the user's question, utilize the provided SOURCE DOCUMENTS (which can contain comparative statutory mappings or direct Question-Answer pairs about specific sections of the new acts), "
+        "and explain the differences, concepts, or procedures clearly, professionally, and accurately.\n\n"
         "Guidelines:\n"
-        "1. Highlight exactly which section of the old law has been replaced by which section of the new law.\n"
-        "2. Detail the modifications (e.g. increase/decrease in punishment, changes in definitions, new procedural mandates like electronic recording, virtual trials, or timelines).\n"
+        "1. Highlight exactly which section of the old law has been replaced by which section of the new law (if comparative data is present in the context).\n"
+        "2. Detail the modifications, definitions, punishments, or procedural requirements as detailed in the source context (such as Zero-FIR, electronic recording, timelines, or custody changes).\n"
         "3. If a section has been repealed without replacement or is entirely new, point that out explicitly.\n"
         "4. Base your answer strictly on the provided context. If the source documents do not contain the answer, "
         "use your general legal knowledge of these acts to answer, but add a warning note that the specific sections were not found in the local database.\n"
@@ -202,7 +224,7 @@ def generate_rag_response(query_text, context_docs, api_key, chat_history=[]):
     
     try:
         response = client.models.generate_content(
-            model="gemini-1.5-flash",
+            model="gemini-2.5-flash",
             contents=prompt,
             config=types.GenerateContentConfig(
                 system_instruction=system_prompt,

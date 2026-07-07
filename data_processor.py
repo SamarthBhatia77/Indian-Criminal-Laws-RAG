@@ -1,4 +1,11 @@
 import os
+# Set environment variables to prevent multi-threaded deadlocks in PyTorch/OpenMP/MKL
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+
+import torch
+torch.set_num_threads(1)
+
 import pandas as pd
 import json
 import chromadb
@@ -188,6 +195,17 @@ IEA_BSA_DATA = [
     }
 ]
 
+# Caching local model instance to prevent reloading in Streamlit
+_transformer_model = None
+
+def get_transformer_model():
+    global _transformer_model
+    if _transformer_model is None:
+        from sentence_transformers import SentenceTransformer
+        print("Loading local SentenceTransformer model 'all-MiniLM-L6-v2'...")
+        _transformer_model = SentenceTransformer('all-MiniLM-L6-v2')
+    return _transformer_model
+
 def load_ipc_bns_dataset():
     """
     Attempts to download IPC to BNS dataset from Hugging Face.
@@ -206,6 +224,70 @@ def load_ipc_bns_dataset():
         # Map list of dicts to DataFrame with correct column names
         df_fallback = pd.DataFrame(IPC_BNS_FALLBACK)
         return df_fallback
+
+def load_legal_qa_dataset():
+    """
+    Loads the bns_bnss_bsa_combined_legal_qa.jsonl file from the database folder.
+    Returns a list of structured document chunks.
+    """
+    qa_path = os.path.join(os.getcwd(), "database", "bns_bnss_bsa_combined_legal_qa.jsonl")
+    if not os.path.exists(qa_path):
+        print(f"QA dataset not found at {qa_path}. Skipping.")
+        return []
+        
+    print(f"Loading QA dataset from {qa_path}...")
+    chunks = []
+    try:
+        with open(qa_path, 'r', encoding='utf-8') as f:
+            for idx, line in enumerate(f):
+                if not line.strip():
+                    continue
+                item = json.loads(line)
+                
+                act = item.get("act", "")
+                sec_num = item.get("section_number", "")
+                sec_title = item.get("section_title", "")
+                question = item.get("question", "")
+                answer = item.get("answer", "")
+                q_type = item.get("question_type", "")
+                
+                # Map act names to existing categories with distinct QA tag
+                if "BNS" in act:
+                    law_type = "IPC-BNS-QA"
+                elif "BNSS" in act:
+                    law_type = "CrPC-BNSS-QA"
+                elif "BSA" in act:
+                    law_type = "IEA-BSA-QA"
+                else:
+                    law_type = "General-QA"
+                    
+                content = (
+                    f"Act: {act}\n"
+                    f"Section: {sec_num} - {sec_title}\n"
+                    f"Question: {question}\n"
+                    f"Answer: {answer}\n"
+                )
+                
+                metadata = {
+                    "law_type": law_type,
+                    "old_section": "",
+                    "old_heading": "",
+                    "new_section": sec_num,
+                    "new_heading": sec_title,
+                    "question_type": q_type,
+                    "is_qa": True
+                }
+                
+                chunks.append({
+                    "id": f"qa_{act.replace(' ', '_').lower()}_{sec_num}_{idx}",
+                    "content": content,
+                    "metadata": metadata
+                })
+        print(f"Successfully loaded {len(chunks)} Q&A pairs from QA dataset.")
+        return chunks
+    except Exception as e:
+        print(f"Error reading QA dataset: {e}")
+        return []
 
 def create_unified_chunks(ipc_bns_df):
     """
@@ -259,7 +341,8 @@ def create_unified_chunks(ipc_bns_df):
             "old_section": ipc_sec,
             "old_heading": ipc_head,
             "new_section": bns_sec,
-            "new_heading": bns_head
+            "new_heading": bns_head,
+            "is_qa": False
         }
         
         chunks.append({
@@ -282,7 +365,8 @@ def create_unified_chunks(ipc_bns_df):
             "old_section": item["Old Section"],
             "old_heading": item["Old Heading"],
             "new_section": item["New Section"],
-            "new_heading": item["New Heading"]
+            "new_heading": item["New Heading"],
+            "is_qa": False
         }
         chunks.append({
             "id": f"crpc_bnss_{item['Old Section']}_{idx}",
@@ -304,7 +388,8 @@ def create_unified_chunks(ipc_bns_df):
             "old_section": item["Old Section"],
             "old_heading": item["Old Heading"],
             "new_section": item["New Section"],
-            "new_heading": item["New Heading"]
+            "new_heading": item["New Heading"],
+            "is_qa": False
         }
         chunks.append({
             "id": f"iea_bsa_{item['Old Section']}_{idx}",
@@ -316,20 +401,24 @@ def create_unified_chunks(ipc_bns_df):
 
 def build_vector_store(api_key, progress_callback=None):
     """
-    Initializes ChromaDB, fetches data, creates embeddings using Gemini API,
-    and inserts documents.
+    Initializes ChromaDB, fetches data, creates embeddings locally using
+    sentence-transformers, and inserts documents.
     """
-    # Initialize the new Google Gen AI Client
-    client = genai.Client(api_key=api_key)
-    
     # Load and process mapping data
     ipc_bns_df = load_ipc_bns_dataset()
     chunks = create_unified_chunks(ipc_bns_df)
     
-    print(f"Total structured sections loaded for indexing: {len(chunks)}")
+    # Load QA dataset
+    qa_chunks = load_legal_qa_dataset()
+    all_chunks = chunks + qa_chunks
+    
+    print(f"Total structured sections loaded for indexing: {len(all_chunks)}")
     if progress_callback:
-        progress_callback(0.1, f"Loaded {len(chunks)} sections. Setting up Vector Store...")
+        progress_callback(0.1, f"Loaded {len(all_chunks)} sections. Initializing local SentenceTransformer...")
         
+    # Lazy load sentence-transformers model
+    model = get_transformer_model()
+    
     # Setup ChromaDB client
     db_path = os.path.join(os.getcwd(), "database")
     chroma_client = chromadb.PersistentClient(path=db_path)
@@ -344,7 +433,7 @@ def build_vector_store(api_key, progress_callback=None):
     existing_count = collection.count()
     print(f"Existing document count in collection: {existing_count}")
     
-    # We clear and re-index to ensure correct schema and complete mapping
+    # We clear and re-index to ensure correct schema, dimensions and complete mapping
     if existing_count > 0:
         print("Clearing existing vector storage to rebuild index...")
         chroma_client.delete_collection("indian_laws_comparison")
@@ -353,30 +442,24 @@ def build_vector_store(api_key, progress_callback=None):
             metadata={"hnsw:space": "cosine"}
         )
     
-    total_docs = len(chunks)
-    batch_size = 50  # Batched uploads to prevent memory overload or API limits
+    total_docs = len(all_chunks)
+    batch_size = 100  # Indexing in batches
     
-    print("Generating embeddings and indexing sections. This may take a moment...")
+    print("Generating local embeddings and indexing sections. This may take a moment...")
     
     for i in range(0, total_docs, batch_size):
-        batch = chunks[i:i+batch_size]
+        batch = all_chunks[i:i+batch_size]
         ids = [doc["id"] for doc in batch]
         documents = [doc["content"] for doc in batch]
         metadatas = [doc["metadata"] for doc in batch]
         
-        # Calculate embeddings using Gemini embedding model
-        embeddings = []
-        for doc_text in documents:
-            try:
-                response = client.models.embed_content(
-                    model="text-embedding-004",
-                    contents=doc_text
-                )
-                embeddings.append(response.embeddings[0].values)
-            except Exception as ex:
-                print(f"Error generating embedding for document: {ex}")
-                # Fallback to zero embedding on failure (to prevent script crash)
-                embeddings.append([0.0] * 768)
+        # Calculate embeddings using local sentence-transformers model
+        try:
+            embeddings = model.encode(documents, show_progress_bar=False).tolist()
+        except Exception as ex:
+            print(f"Error generating local embeddings for batch: {ex}")
+            # Fallback to zero embeddings of dimension 384 (all-MiniLM-L6-v2 size)
+            embeddings = [[0.0] * 384 for _ in documents]
         
         # Add to ChromaDB
         collection.add(
@@ -386,23 +469,18 @@ def build_vector_store(api_key, progress_callback=None):
             metadatas=metadatas
         )
         
-        progress = 0.1 + (0.9 * (min(i + batch_size, total_docs) / total_docs))
-        status_msg = f"Indexed {min(i + batch_size, total_docs)} / {total_docs} sections..."
+        progress = 0.15 + (0.85 * (min(i + batch_size, total_docs) / total_docs))
+        status_msg = f"Indexed {min(i + batch_size, total_docs)} / {total_docs} sections locally..."
         print(status_msg)
         if progress_callback:
             progress_callback(progress, status_msg)
             
     print("Vector database indexing complete!")
     if progress_callback:
-        progress_callback(1.0, "Vector DB successfully indexed!")
+        progress_callback(1.0, "Vector DB successfully indexed locally!")
         
-    return len(chunks)
+    return len(all_chunks)
 
 if __name__ == "__main__":
     # Test script run from CLI
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        print("Error: GEMINI_API_KEY environment variable not found.")
-        print("Please set GEMINI_API_KEY or run through the Streamlit interface.")
-    else:
-        build_vector_store(api_key)
+    build_vector_store(api_key=None)

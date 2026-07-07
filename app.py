@@ -1,4 +1,11 @@
 import os
+# Set environment variables to prevent multi-threaded deadlocks in PyTorch/OpenMP/MKL
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+
+import torch
+torch.set_num_threads(1)
+
 import sys
 import subprocess
 import streamlit as st
