@@ -1,0 +1,86 @@
+{
+  "title": "Are there any differences in regard...",
+  "timestamp": 1783447773.3944116,
+  "history": [
+    {
+      "role": "user",
+      "content": "Are there any differences in regards to how charges on murders are handled between old and new criminal laws? Explain in depth."
+    },
+    {
+      "role": "assistant",
+      "content": "Error communicating with Gemini LLM: 503 UNAVAILABLE. {'error': {'code': 503, 'message': 'This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.', 'status': 'UNAVAILABLE'}}",
+      "citations": [
+        {
+          "id": "qa_bns_2023_110_658",
+          "content": "Act: BNS 2023\nSection: 110 - Attempt to commit culpable homicide\nQuestion: How does this section differ from Attempt to Murder (Section 109)?\nAnswer: This section strictly applies when the offender acts under circumstances that legally mitigate the crime (like grave provocation or sudden fight) such that, if death had occurred, it would only be culpable homicide, not murder. Section 109 lacks these mitigating circumstances. [Source: Section 110, BNS 2023]\n",
+          "metadata": {
+            "law_type": "IPC-BNS-QA",
+            "old_heading": "",
+            "question_type": "exceptions",
+            "is_qa": true,
+            "new_section": "110",
+            "old_section": "",
+            "new_heading": "Attempt to commit culpable homicide"
+          },
+          "similarity": 0.536668062210083
+        },
+        {
+          "id": "qa_bnss_2023_236_3562",
+          "content": "Act: BNSS 2023\nSection: 236 - When manner of committing offence must be stated\nQuestion: If a person is accused of murder, does the charge have to describe exactly what weapon they used and how they struck the victim?\nAnswer: No, Illustration (e) explicitly states: \"A is accused of the murder of B at a given time and place. The charge need not state the manner in which A murdered B.\" The word \"murder\" itself usually provides sufficient notice. [Source: Section 236, BNSS 2023]\n",
+          "metadata": {
+            "old_heading": "",
+            "new_heading": "When manner of committing offence must be stated",
+            "question_type": "exceptions",
+            "new_section": "236",
+            "old_section": "",
+            "is_qa": true,
+            "law_type": "IPC-BNS-QA"
+          },
+          "similarity": 0.5029284954071045
+        },
+        {
+          "id": "qa_bns_2023_105_625",
+          "content": "Act: BNS 2023\nSection: 105 - Punishment for culpable homicide not amounting to murder\nQuestion: How does Section 105 of BNS 2023 structure the punishment for culpable homicide?\nAnswer: Section 105 of BNS 2023 provides a two-tiered punishment system. If the act was done with the intent to cause death or fatal injury, the penalty is life imprisonment or 5-10 years. If done only with the knowledge of likely death but no intent, the penalty is up to 10 years. [Source: Section 105, BNS 2023]\n",
+          "metadata": {
+            "new_section": "105",
+            "old_heading": "",
+            "question_type": "definitional_section",
+            "old_section": "",
+            "is_qa": true,
+            "new_heading": "Punishment for culpable homicide not amounting to murder",
+            "law_type": "IPC-BNS-QA"
+          },
+          "similarity": 0.5013620257377625
+        },
+        {
+          "id": "qa_bns_2023_105_624",
+          "content": "Act: BNS 2023\nSection: 105 - Punishment for culpable homicide not amounting to murder\nQuestion: What is the punishment for killing someone without it qualifying legally as murder (e.g., manslaughter)?\nAnswer: Culpable homicide not amounting to murder is punishable by up to life imprisonment or 5 to 10 years if done with intent to kill/injure. If done only with the knowledge it might cause death (without intent), it is punishable by up to 10 years. [Source: Section 105, BNS 2023]\n",
+          "metadata": {
+            "old_heading": "",
+            "new_heading": "Punishment for culpable homicide not amounting to murder",
+            "new_section": "105",
+            "question_type": "definitional_topic",
+            "is_qa": true,
+            "old_section": "",
+            "law_type": "IPC-BNS-QA"
+          },
+          "similarity": 0.4886019825935364
+        },
+        {
+          "id": "qa_bns_2023_101_601",
+          "content": "Act: BNS 2023\nSection: 101 - Murder\nQuestion: How does Section 101 of BNS 2023 classify when culpable homicide amounts to murder?\nAnswer: Section 101 of BNS 2023 establishes four clauses making culpable homicide murder: specific intent to kill, intent to cause known fatal injury, inflicting injury sufficient in ordinary course to cause death, or acting with imminent danger without excuse. It also lists five Exceptions where the crime reverts to culpable homicide not amounting to murder. [Source: Section 101, BNS 2023]\n",
+          "metadata": {
+            "law_type": "IPC-BNS-QA",
+            "new_heading": "Murder",
+            "is_qa": true,
+            "old_heading": "",
+            "new_section": "101",
+            "old_section": "",
+            "question_type": "definitional_section"
+          },
+          "similarity": 0.4657434821128845
+        }
+      ]
+    }
+  ]
+}

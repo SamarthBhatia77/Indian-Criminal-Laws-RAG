@@ -1,0 +1,6 @@
+.env
+__pycache__/
+database/chats/
+*.log
+available_models.txt
+.ipynb_checkpoints/

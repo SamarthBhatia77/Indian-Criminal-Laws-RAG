@@ -1,0 +1,86 @@
+{
+  "title": "what were the charges that were put...",
+  "timestamp": 1784016512.7805223,
+  "history": [
+    {
+      "role": "user",
+      "content": "what were the charges that were put on offenders on cases like abduction and kidnapping as per the old criminal laws ? How did they change when the new laws came in?"
+    },
+    {
+      "role": "assistant",
+      "content": "Error communicating with Gemini LLM (tried gemini-2.5-flash, gemini-2.0-flash, gemini-1.5-flash): 404 NOT_FOUND. {'error': {'code': 404, 'message': 'models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ModelService.ListModels to see the list of available models and their supported methods.', 'status': 'NOT_FOUND'}}",
+      "citations": [
+        {
+          "id": "qa_bns_2023_140_835",
+          "content": "Act: BNS 2023\nSection: 140 - Kidnapping or abducting in order to murder or for ransom, etc.\nQuestion: How does Section 140 of BNS 2023 grade aggravated forms of kidnapping and abduction?\nAnswer: Section 140 of BNS 2023 penalizes aggravated kidnapping/abduction: for murder (up to life imprisonment, sub-section 1); for ransom/coercion with death threats (death or life imprisonment, sub-section 2); for secret confinement (up to 7 years, sub-section 3); and for grievous hurt, slavery, or unnatural lust (up to 10 years, sub-section 4). [Source: Section 140, BNS 2023]\n",
+          "metadata": {
+            "question_type": "definitional_section",
+            "law_type": "IPC-BNS-QA",
+            "is_qa": true,
+            "old_section": "",
+            "new_section": "140",
+            "old_heading": "",
+            "new_heading": "Kidnapping or abducting in order to murder or for ransom, etc."
+          },
+          "similarity": 0.5757192373275757
+        },
+        {
+          "id": "qa_bns_2023_140_837",
+          "content": "Act: BNS 2023\nSection: 140 - Kidnapping or abducting in order to murder or for ransom, etc.\nQuestion: What three specific illicit purposes elevate kidnapping to a 10-year offence under sub-section (4)?\nAnswer: The three purposes are: subjecting the person to 1) grievous hurt, 2) slavery, or 3) the unnatural lust of any person. [Source: Section 140, BNS 2023]\n",
+          "metadata": {
+            "question_type": "elements",
+            "old_heading": "",
+            "new_section": "140",
+            "old_section": "",
+            "new_heading": "Kidnapping or abducting in order to murder or for ransom, etc.",
+            "law_type": "IPC-BNS-QA",
+            "is_qa": true
+          },
+          "similarity": 0.5408633947372437
+        },
+        {
+          "id": "qa_bns_2023_87_517",
+          "content": "Act: BNS 2023\nSection: 87 - Kidnapping, abducting or inducing woman to compel her marriage, etc\nQuestion: What offences are covered under Section 87 of BNS 2023?\nAnswer: Section 87 of BNS 2023 covers kidnapping, abducting, or inducing a woman to compel her into marriage or illicit intercourse. Using criminal intimidation, abuse of authority, or compulsion to achieve these ends is punishable by up to ten years imprisonment. [Source: Section 87, BNS 2023]\n",
+          "metadata": {
+            "old_section": "",
+            "old_heading": "",
+            "question_type": "definitional_section",
+            "new_heading": "Kidnapping, abducting or inducing woman to compel her marriage, etc",
+            "is_qa": true,
+            "new_section": "87",
+            "law_type": "IPC-BNS-QA"
+          },
+          "similarity": 0.5198020935058594
+        },
+        {
+          "id": "qa_bns_2023_97_581",
+          "content": "Act: BNS 2023\nSection: 97 - Kidnapping or abducting child under ten years of age with intent to steal from its person\nQuestion: What is the consequence of having a dedicated section for this specific crime?\nAnswer: The consequence is that the law acknowledges the unique vulnerability of very young children who are often targeted purely for the valuables placed on them by their parents, ensuring a severe kidnapping penalty applies even if no ransom is demanded. [Source: Section 97, BNS 2023]\n",
+          "metadata": {
+            "old_heading": "",
+            "question_type": "consequence",
+            "law_type": "IPC-BNS-QA",
+            "new_heading": "Kidnapping or abducting child under ten years of age with intent to steal from its person",
+            "old_section": "",
+            "new_section": "97",
+            "is_qa": true
+          },
+          "similarity": 0.5146196484565735
+        },
+        {
+          "id": "qa_bns_2023_138_827",
+          "content": "Act: BNS 2023\nSection: 138 - Abduction\nQuestion: What is the legal consequence of separating abduction from kidnapping?\nAnswer: The consequence is that the law recognizes two distinct evils: kidnapping focuses on violating *guardianship* rights (often involving minors who cannot consent), while abduction focuses on violating the *free will* of an individual (through force or fraud) regardless of their age. [Source: Section 138, BNS 2023]\n",
+          "metadata": {
+            "old_heading": "",
+            "is_qa": true,
+            "question_type": "consequence",
+            "new_section": "138",
+            "old_section": "",
+            "new_heading": "Abduction",
+            "law_type": "IPC-BNS-QA"
+          },
+          "similarity": 0.5048693418502808
+        }
+      ]
+    }
+  ]
+}

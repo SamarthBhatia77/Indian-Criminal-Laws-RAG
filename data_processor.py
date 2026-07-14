@@ -1,7 +1,10 @@
 import os
-# Set environment variables to prevent multi-threaded deadlocks in PyTorch/OpenMP/MKL
+# Set environment variables to prevent multi-threaded deadlocks and offline hangs in PyTorch/OpenMP/MKL/HuggingFace
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 import torch
 torch.set_num_threads(1)
@@ -9,8 +12,6 @@ torch.set_num_threads(1)
 import pandas as pd
 import json
 import chromadb
-from google import genai
-from google.genai import types
 from datasets import load_dataset
 
 # Fallback data for IPC to BNS (in case HF datasets load fails)

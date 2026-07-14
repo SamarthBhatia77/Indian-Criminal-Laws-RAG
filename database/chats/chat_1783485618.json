@@ -1,0 +1,86 @@
+{
+  "title": "What were the old criminal laws in ...",
+  "timestamp": 1783485618.1027198,
+  "history": [
+    {
+      "role": "user",
+      "content": "What were the old criminal laws in regards to theft and robbery and how did they change as time passed? Explain the timeline."
+    },
+    {
+      "role": "assistant",
+      "content": "Error communicating with Gemini LLM: 503 UNAVAILABLE. {'error': {'code': 503, 'message': 'This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.', 'status': 'UNAVAILABLE'}}",
+      "citations": [
+        {
+          "id": "qa_bns_2023_309_1849",
+          "content": "Act: BNS 2023\nSection: 309 - Robbery\nQuestion: How does Section 309 of BNS 2023 classify and penalize robbery?\nAnswer: Section 309 of BNS 2023 defines robbery as aggravated theft or extortion involving the causing or threat of instant death, hurt, or wrongful restraint. It is punishable by rigorous imprisonment up to 10 years (14 years on a highway at night), and causing hurt during robbery carries up to life imprisonment. [Source: Section 309, BNS 2023]\n",
+          "metadata": {
+            "old_section": "",
+            "new_heading": "Robbery",
+            "old_heading": "",
+            "question_type": "definitional_section",
+            "is_qa": true,
+            "new_section": "309",
+            "law_type": "IPC-BNS-QA"
+          },
+          "similarity": 0.6383580565452576
+        },
+        {
+          "id": "qa_bns_2023_307_1837",
+          "content": "Act: BNS 2023\nSection: 307 - Theft after preparation made for causing death, hurt or restraint in order to committing\nQuestion: How does Section 307 of BNS 2023 penalize prepared, armed theft?\nAnswer: Section 307 of BNS 2023 imposes rigorous imprisonment up to 10 years and a fine on whoever commits theft having made preparation to cause death, hurt, or restraint to any person in order to commit the theft, escape, or retain the property. [Source: Section 307, BNS 2023]\n",
+          "metadata": {
+            "old_heading": "",
+            "old_section": "",
+            "law_type": "IPC-BNS-QA",
+            "new_heading": "Theft after preparation made for causing death, hurt or restraint in order to committing",
+            "is_qa": true,
+            "new_section": "307",
+            "question_type": "definitional_section"
+          },
+          "similarity": 0.5898681879043579
+        },
+        {
+          "id": "qa_bns_2023_309_1848",
+          "content": "Act: BNS 2023\nSection: 309 - Robbery\nQuestion: When does a simple theft or extortion become the more serious crime of robbery?\nAnswer: Theft becomes robbery if the offender voluntarily causes or threatens instant death, hurt, or wrongful restraint to commit the theft or escape. Extortion becomes robbery if the offender is physically present and induces the victim to hand over property through fear of instant death, hurt, or restraint. [Source: Section 309, BNS 2023]\n",
+          "metadata": {
+            "law_type": "IPC-BNS-QA",
+            "is_qa": true,
+            "old_heading": "",
+            "old_section": "",
+            "question_type": "definitional_topic",
+            "new_section": "309",
+            "new_heading": "Robbery"
+          },
+          "similarity": 0.5729191303253174
+        },
+        {
+          "id": "qa_bns_2023_313_1873",
+          "content": "Act: BNS 2023\nSection: 313 - Punishment for belonging to gang of robbers, etc.\nQuestion: How does Section 313 of BNS 2023 target organized thievery?\nAnswer: Section 313 of BNS 2023 imposes rigorous imprisonment up to 7 years and a fine on whoever belongs to a gang associated in habitually committing theft or robbery, provided they are not a gang of dacoits. [Source: Section 313, BNS 2023]\n",
+          "metadata": {
+            "new_section": "313",
+            "question_type": "definitional_section",
+            "old_section": "",
+            "new_heading": "Punishment for belonging to gang of robbers, etc.",
+            "old_heading": "",
+            "law_type": "IPC-BNS-QA",
+            "is_qa": true
+          },
+          "similarity": 0.5663676261901855
+        },
+        {
+          "id": "qa_bns_2023_303_1813",
+          "content": "Act: BNS 2023\nSection: 303 - Theft\nQuestion: What does Section 303 of BNS 2023 state about theft?\nAnswer: Section 303 of BNS 2023 defines theft as dishonestly moving movable property out of a person's possession without consent. It prescribes up to 3 years imprisonment or fine, with repeat offenders facing 1 to 5 years rigorous imprisonment, and specific community service provisions for minor first-time thefts. [Source: Section 303, BNS 2023]\n",
+          "metadata": {
+            "new_heading": "Theft",
+            "old_section": "",
+            "old_heading": "",
+            "law_type": "IPC-BNS-QA",
+            "new_section": "303",
+            "is_qa": true,
+            "question_type": "definitional_section"
+          },
+          "similarity": 0.5617011189460754
+        }
+      ]
+    }
+  ]
+}

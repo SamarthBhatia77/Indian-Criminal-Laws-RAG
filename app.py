@@ -1,7 +1,21 @@
 import os
-# Set environment variables to prevent multi-threaded deadlocks in PyTorch/OpenMP/MKL
+# Load local .env variables if present
+if os.path.exists(".env"):
+    try:
+        with open(".env", "r") as f:
+            for line in f:
+                if line.strip() and not line.startswith("#") and "=" in line:
+                    k, v = line.strip().split("=", 1)
+                    os.environ[k.strip()] = v.strip()
+    except Exception:
+        pass
+
+# Set environment variables to prevent multi-threaded deadlocks and offline hangs in PyTorch/OpenMP/MKL/HuggingFace
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 import torch
 torch.set_num_threads(1)
@@ -10,25 +24,103 @@ import sys
 import subprocess
 import streamlit as st
 
-# Self-healing upgrade for the new google-genai SDK to resolve deprecation issues
+# Self-healing upgrade for the groq SDK
 upgraded_sdk = False
 try:
-    from google import genai
+    import groq
 except ImportError:
     import sys
     import subprocess
     try:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "google-genai"])
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "groq"])
         upgraded_sdk = True
     except Exception as e:
         pass
 
 import pandas as pd
 import time
+import json
 import data_processor
 import rag_engine
 
+# --- Chat History Helpers ---
+def save_chat_session(chat_history, chat_id=None):
+    if not chat_history:
+        return chat_id
+        
+    os.makedirs(os.path.join(os.getcwd(), "database", "chats"), exist_ok=True)
+    
+    if chat_id is None:
+        chat_id = f"chat_{int(time.time())}.json"
+        
+    # Get a title based on the first user query
+    first_query = ""
+    for msg in chat_history:
+        if msg["role"] == "user":
+            first_query = msg["content"]
+            break
+            
+    title = first_query[:35] + "..." if len(first_query) > 35 else (first_query or "Untitled Chat")
+    
+    chat_file_path = os.path.join(os.getcwd(), "database", "chats", chat_id)
+    chat_data = {
+        "title": title,
+        "timestamp": time.time(),
+        "history": chat_history
+    }
+    
+    try:
+        with open(chat_file_path, "w", encoding="utf-8") as f:
+            json.dump(chat_data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Error saving chat session: {e}")
+        
+    return chat_id
 
+def get_chat_sessions():
+    chats_dir = os.path.join(os.getcwd(), "database", "chats")
+    if not os.path.exists(chats_dir):
+        return []
+        
+    sessions = []
+    for fname in os.listdir(chats_dir):
+        if fname.endswith(".json"):
+            try:
+                with open(os.path.join(chats_dir, fname), "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    sessions.append({
+                        "id": fname,
+                        "title": data.get("title", "Untitled Chat"),
+                        "timestamp": data.get("timestamp", 0)
+                    })
+            except Exception:
+                pass
+                
+    # Sort by timestamp descending (newest first)
+    sessions.sort(key=lambda x: x["timestamp"], reverse=True)
+    return sessions
+
+def load_chat_session(chat_id):
+    chat_file_path = os.path.join(os.getcwd(), "database", "chats", chat_id)
+    if not os.path.exists(chat_file_path):
+        return []
+    try:
+        with open(chat_file_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data.get("history", [])
+    except Exception as e:
+        print(f"Error loading chat session: {e}")
+        return []
+
+def delete_chat_session(chat_id):
+    chat_file_path = os.path.join(os.getcwd(), "database", "chats", chat_id)
+    if os.path.exists(chat_file_path):
+        try:
+            os.remove(chat_file_path)
+            return True
+        except Exception as e:
+            print(f"Error deleting chat session: {e}")
+    return False
 # --- Custom Styling & CSS (Aesthetics and Premium UX) ---
 def apply_custom_css():
     st.markdown("""
@@ -161,43 +253,90 @@ apply_custom_css()
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 if "api_key" not in st.session_state:
-    st.session_state.api_key = os.environ.get("GEMINI_API_KEY", "")
+    st.session_state.api_key = os.environ.get("GROQ_API_KEY", "")
+if "active_chat_id" not in st.session_state:
+    st.session_state.active_chat_id = None
+if "prev_selected_chat_id" not in st.session_state:
+    st.session_state.prev_selected_chat_id = None
 
 # --- Sidebar Configuration ---
 with st.sidebar:
-    st.markdown('<div style="text-align: center;"><span style="font-size: 3.5rem;">⚖️</span></div>', unsafe_allow_html=True)
+    st.markdown('<div style="text-align: center; color: #6366F1; margin-bottom: 10px;"><i class="bi bi-balance" style="font-size: 3.5rem;"></i></div>', unsafe_allow_html=True)
     st.markdown("<h3 style='text-align: center; margin-top: 0;'>Criminal Law Transition</h3>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; font-size: 0.85rem; color:#888;'>Compare legacy codes (IPC, CrPC, IEA) with active reforms (BNS, BNSS, BSA) using AI</p>", unsafe_allow_html=True)
     st.write("---")
     
     # API Key Input
     api_key_input = st.text_input(
-        "Google Gemini API Key",
+        "Groq API Key",
         value=st.session_state.api_key,
         type="password",
-        help="Required to run embedding search and chatbot. Set the GEMINI_API_KEY environment variable or paste it here."
+        help="Required to run chatbot. Set the GROQ_API_KEY environment variable or paste it here."
     )
     
     if api_key_input:
         st.session_state.api_key = api_key_input
-        st.success("✓ API Key loaded")
+        st.success("API Key loaded", icon=":material/vpn_key:")
     else:
-        st.warning("⚠️ Enter Gemini API Key to run searches")
+        st.warning("Enter Groq API Key to run searches", icon=":material/key:")
         
     st.write("---")
     
+    # Conversation History (Past Chats)
+    st.markdown("##### :material/history: Conversation History")
+    sessions = get_chat_sessions()
+    options = ["New Conversation"] + [s["title"] for s in sessions]
+    option_ids = [None] + [s["id"] for s in sessions]
+    
+    current_index = 0
+    if st.session_state.active_chat_id in option_ids:
+        current_index = option_ids.index(st.session_state.active_chat_id)
+        
+    selected_option_index = st.selectbox(
+        "Select conversation:",
+        range(len(options)),
+        format_func=lambda x: options[x],
+        index=current_index,
+        key="chat_history_selector"
+    )
+    
+    selected_chat_id = option_ids[selected_option_index]
+    
+    # Handle conversation change
+    if st.session_state.prev_selected_chat_id != selected_chat_id:
+        st.session_state.prev_selected_chat_id = selected_chat_id
+        st.session_state.active_chat_id = selected_chat_id
+        if selected_chat_id:
+            st.session_state.chat_history = load_chat_session(selected_chat_id)
+        else:
+            st.session_state.chat_history = []
+        st.rerun()
+        
+    # Delete Selected Chat
+    if st.session_state.active_chat_id:
+        if st.button("Delete Selected Conversation", icon=":material/delete:", use_container_width=True):
+            delete_chat_session(st.session_state.active_chat_id)
+            st.session_state.active_chat_id = None
+            st.session_state.chat_history = []
+            st.session_state.prev_selected_chat_id = None
+            st.success("Conversation deleted!")
+            time.sleep(1)
+            st.rerun()
+            
+    st.write("---")
+    
     # Database Status and Management
-    st.markdown("##### Vector Database Status")
+    st.markdown("##### :material/database: Vector Database Status")
     collection = rag_engine.get_chroma_collection()
     
     if collection is None or collection.count() == 0:
-        st.error("❌ Database not indexed.")
+        st.error("Database not indexed.", icon=":material/database_off:")
         st.write("The database is currently empty. Run the indexing routine below using your API key to download and compile statutory mappings.")
         
         # Ingestion Trigger Button
-        if st.button("📥 Ingest & Build Index", use_container_width=True):
+        if st.button("Ingest & Build Index", icon=":material/cloud_download:", use_container_width=True):
             if not st.session_state.api_key:
-                st.error("Please enter a valid Gemini API Key first.")
+                st.error("Please enter a valid Groq API Key first.")
             else:
                 progress_bar = st.progress(0.0)
                 status_text = st.empty()
@@ -211,19 +350,19 @@ with st.sidebar:
                         api_key=st.session_state.api_key,
                         progress_callback=progress_cb
                     )
-                    st.success(f"✓ Ingested & indexed {total_indexed} sections successfully!")
+                    st.success(f"Ingested & indexed {total_indexed} sections successfully!", icon=":material/check_circle:")
                     time.sleep(2)
                     st.rerun()
                 except Exception as ex:
                     st.error(f"Ingestion failed: {ex}")
     else:
         doc_count = collection.count()
-        st.success(f"✓ Database Ready ({doc_count} provisions indexed)")
+        st.success(f"Database Ready ({doc_count} provisions)", icon=":material/database:")
         
         # Optional Re-index button
-        if st.button("🔄 Rebuild Law Index", use_container_width=True):
+        if st.button("Rebuild Law Index", icon=":material/refresh:", use_container_width=True):
             if not st.session_state.api_key:
-                st.error("Please enter a Gemini API Key to run embeddings.")
+                st.error("Please enter a Groq API Key first.")
             else:
                 progress_bar = st.progress(0.0)
                 status_text = st.empty()
@@ -237,7 +376,7 @@ with st.sidebar:
                         api_key=st.session_state.api_key,
                         progress_callback=progress_cb
                     )
-                    st.success(f"✓ Re-indexed {total_indexed} sections successfully!")
+                    st.success(f"Re-indexed {total_indexed} sections successfully!", icon=":material/check_circle:")
                     time.sleep(1)
                     st.rerun()
                 except Exception as ex:
@@ -256,34 +395,34 @@ with st.sidebar:
     )
 
 # --- Main Screen Layout ---
-st.markdown("<h1 class='app-title'>Indian Criminal Law Transition Portal</h1>", unsafe_allow_html=True)
+st.markdown("<h1 class='app-title'><i class='bi bi-balance' style='font-size: 2.8rem; margin-right: 15px;'></i>Indian Criminal Law Transition Portal</h1>", unsafe_allow_html=True)
 st.markdown("<p class='app-subtitle'>Study and query differences between legacy codes and the new criminal laws easily</p>", unsafe_allow_html=True)
 
 if upgraded_sdk:
-    st.warning("🔄 **The new Google Gen AI SDK (google-genai) has been installed** to resolve compatibility issues and deprecation warnings. Please **restart your Streamlit server** in your terminal window (press `Ctrl+C` to stop it, then run `streamlit run app.py` again) to apply the update.")
+    st.warning("The Groq SDK has been installed. Please restart your Streamlit server in your terminal window (press `Ctrl+C` to stop it, then run `streamlit run app.py` again) to apply the update.", icon=":material/warning:")
 
 
 # Tabs Navigation
 tab_chat, tab_translate, tab_dashboard = st.tabs([
-    "💬 Comparative Chatbot (RAG)", 
-    "🔍 Section Translator", 
-    "📊 Law Reform Dashboard"
+    ":material/forum: Comparative Chatbot (RAG)", 
+    ":material/translate: Section Translator", 
+    ":material/analytics: Law Reform Dashboard"
 ])
 
 # ==============================================================================
 # TAB 1: Comparative Chatbot (RAG)
 # ==============================================================================
 with tab_chat:
-    st.markdown("### Ask the AI Legal Assistant")
+    st.markdown("### :material/forum: Ask the AI Legal Assistant")
     st.write("Ask questions comparing legacy and new codes. The chatbot uses semantic search over statutory mappings to supply correct sections and detail reforms.")
     
     # Check if API Key and DB are present
     db_ready = collection is not None and collection.count() > 0
     
     if not st.session_state.api_key:
-        st.info("💡 Please input your Google Gemini API Key in the sidebar to talk with the chatbot.")
+        st.info("Please input your Groq API Key in the sidebar to talk with the chatbot.", icon=":material/key:")
     elif not db_ready:
-        st.info("💡 The database has no documents. Please trigger 'Ingest & Build Index' in the sidebar first.")
+        st.info("The database has no documents. Please trigger 'Ingest & Build Index' in the sidebar first.", icon=":material/database:")
     else:
         # Display chat history
         for message in st.session_state.chat_history:
@@ -294,14 +433,24 @@ with tab_chat:
                 
                 # Check for citations to display
                 if "citations" in message and message["citations"]:
-                    with st.expander("📚 View Retreived Section Contexts"):
+                    with st.expander("📚 View Retrieved Section Contexts"):
                         for cite in message["citations"]:
                             law_type = cite["metadata"].get("law_type", "General")
                             badge_cls = "badge-ipc" if "IPC" in law_type else ("badge-crpc" if "CrPC" in law_type else "badge-iea")
+                            
+                            old_sec = cite["metadata"].get("old_section", "")
+                            old_heading = cite["metadata"].get("old_heading", "")
+                            new_sec = cite["metadata"].get("new_section", "")
+                            new_heading = cite["metadata"].get("new_heading", "")
+                            
+                            if old_sec:
+                                citation_header = f'<b>Old:</b> Sec {old_sec} ({old_heading}) | <b>New:</b> Sec {new_sec} ({new_heading})'
+                            else:
+                                citation_header = f'<b>New Law Detail:</b> Sec {new_sec} ({new_heading})'
+                                
                             st.markdown(
                                 f'<span class="law-badge {badge_cls}">{law_type}</span> '
-                                f'<b>Old:</b> Sec {cite["metadata"].get("old_section")} ({cite["metadata"].get("old_heading")}) | '
-                                f'<b>New:</b> Sec {cite["metadata"].get("new_section")} ({cite["metadata"].get("new_heading")})<br>'
+                                f'{citation_header}<br>'
                                 f'<div class="citation-box">{cite["content"].replace(chr(10), "<br>")}</div><br>',
                                 unsafe_allow_html=True
                             )
@@ -339,6 +488,12 @@ with tab_chat:
                 st.session_state.chat_history.append({"role": "user", "content": query})
                 st.session_state.chat_history.append(message_entry)
                 
+                # Save chat session to disk
+                st.session_state.active_chat_id = save_chat_session(
+                    st.session_state.chat_history,
+                    st.session_state.active_chat_id
+                )
+                
                 # Rerun to render chat bubble
                 st.rerun()
 
@@ -346,7 +501,7 @@ with tab_chat:
 # TAB 2: Section Translator
 # ==============================================================================
 with tab_translate:
-    st.markdown("### Side-by-Side Section Lookup")
+    st.markdown("### :material/compare: Side-by-Side Section Lookup")
     st.write("Input a legacy section number (like IPC 302, CrPC 438, IEA 65B) or a new section number to translate and view the exact text modifications side-by-side.")
     
     col_sel_type, col_sel_sec, col_btn = st.columns([3, 3, 2])
@@ -361,13 +516,13 @@ with tab_translate:
         
     with col_btn:
         st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
-        lookup_clicked = st.button("Translate & Compare", use_container_width=True)
+        lookup_clicked = st.button("Translate & Compare", icon=":material/compare_arrows:", use_container_width=True)
         
     if lookup_clicked or section_number:
         if not db_ready:
-            st.error("Database is empty. Please run indexing from the sidebar first.")
+            st.error("Database is empty. Please run indexing from the sidebar first.", icon=":material/database_off:")
         elif not section_number:
-            st.warning("Please enter a section number to translate.")
+            st.warning("Please enter a section number to translate.", icon=":material/warning:")
         else:
             with st.spinner("Locating statutory references..."):
                 translation_result = rag_engine.direct_lookup(selected_law, section_number)
@@ -389,7 +544,7 @@ with tab_translate:
                         <!-- Old Law Card -->
                         <div class="compare-half">
                             <div class="compare-title old-law-color">
-                                📜 Old: {selected_law.split(" to ")[0]} - Sec {translation_result["old_section"]}
+                                <i class="bi bi-journal-text" style="margin-right: 8px;"></i>Old: {selected_law.split(" to ")[0]} - Sec {translation_result["old_section"]}
                             </div>
                             <p><b>Heading:</b> {translation_result["old_heading"]}</p>
                             <p style="font-size:0.95rem; line-height:1.5; color:#D1D5DB;">{translation_result["old_description"]}</p>
@@ -398,7 +553,7 @@ with tab_translate:
                         <!-- New Law Card -->
                         <div class="compare-half" style="border-color: rgba(96, 165, 250, 0.2); background: rgba(59, 130, 246, 0.02);">
                             <div class="compare-title new-law-color">
-                                ⚖️ New: {selected_law.split(" to ")[1].split(" ")[0]} - Sec {translation_result["new_section"]}
+                                <i class="bi bi-gavel" style="margin-right: 8px;"></i>New: {selected_law.split(" to ")[1].split(" ")[0]} - Sec {translation_result["new_section"]}
                             </div>
                             <p><b>Heading:</b> {translation_result["new_heading"]}</p>
                             <p style="font-size:0.95rem; line-height:1.5; color:#D1D5DB;">{translation_result["new_description"]}</p>
@@ -414,7 +569,7 @@ with tab_translate:
 # TAB 3: Law Reform Dashboard
 # ==============================================================================
 with tab_dashboard:
-    st.markdown("### Core Legal Reform Summaries")
+    st.markdown("### :material/assignment: Core Legal Reform Summaries")
     st.write("Understand the key systemic shifts brought by the new laws starting July 1, 2024.")
     
     # 3 Column Stat cards
@@ -465,7 +620,7 @@ with tab_dashboard:
         </div>
         """, unsafe_allow_html=True)
         
-    st.markdown("### Crucial Transitions & Major Systemic Changes")
+    st.markdown("### :material/swap_horiz: Crucial Transitions & Major Systemic Changes")
     
     # Comparison table for dashboard
     comparison_data = {
